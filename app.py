@@ -465,7 +465,8 @@ def chat():
         user_msg = database.add_message(
             conv_id,
             "user",
-            user_message_text
+            user_message_text,
+            user_id=user_id
         )
 
         # Retrieve conversation history
@@ -479,7 +480,8 @@ def chat():
         ai_msg = database.add_message(
             conv_id,
             "assistant",
-            ai_response_text
+            ai_response_text,
+            user_id=user_id
         )
 
         return jsonify({
@@ -532,7 +534,7 @@ def regenerate():
 
         # Remove last assistant response if present
         if messages[-1]["sender"] == "assistant":
-            database.delete_last_assistant_message(conv_id)
+            database.delete_last_assistant_message(conv_id, user_id=user_id)
             messages = messages[:-1]
 
         if not messages:
@@ -547,7 +549,8 @@ def regenerate():
         new_ai_msg = database.add_message(
             conv_id,
             "assistant",
-            ai_response_text
+            ai_response_text,
+            user_id=user_id
         )
 
         return jsonify({

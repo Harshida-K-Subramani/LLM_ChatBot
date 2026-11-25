@@ -1,7 +1,7 @@
 """
 SmartAI - Application Configuration
 Configuration for Flask, Neon PostgreSQL, and Groq API.
-Supports seamless deployment on Vercel serverless environment.
+Supports seamless deployment on Vercel serverless environment with strict production safety.
 """
 
 import os
@@ -11,13 +11,68 @@ from dotenv import load_dotenv
 
 # Base directory
 BASE_DIR = Path(__file__).resolve().parent
-DATABASE_PATH = BASE_DIR / "smartai.db"
 
-# Load environment variables from .env if present
+# Load environment variables from .env if present (used in local development)
 load_dotenv(BASE_DIR / ".env")
 
 
-class Config:
+def is_production() -> bool:
+    """
+    Detects if application is running in a production environment (Vercel, container, or production mode).
+    """
+    return bool(
+        os.getenv("VERCEL") == "1"
+        or os.getenv("VERCEL_ENV") in ("production", "preview")
+        or os.getenv("FLASK_ENV") == "production"
+        or os.getenv("ENV") == "production"
+        or os.getenv("ENVIRONMENT") == "production"
+    )
+
+
+def normalize_database_url(url: str) -> str:
+    """
+    Normalizes PostgreSQL connection URL for psycopg/psycopg2 and Neon compatibility:
+    - Replaces 'postgres://' with 'postgresql://'
+    - Ensures 'sslmode=require' is present for secure Neon connections.
+    """
+    if not url:
+        return ""
+    clean_url = url.strip()
+    if clean_url.startswith("postgres://"):
+        clean_url = clean_url.replace("postgres://", "postgresql://", 1)
+
+    if "sslmode=" not in clean_url:
+        clean_url += ("&" if "?" in clean_url else "?") + "sslmode=require"
+
+    return clean_url
+
+
+def get_database_url() -> str:
+    """
+    Retrieves and normalizes the PostgreSQL database URL from environment variables.
+    Checks standard DATABASE_URL as well as Vercel/Neon integration variables (POSTGRES_URL, etc.).
+    """
+    raw_url = (
+        os.getenv("DATABASE_URL", "").strip()
+        or os.getenv("POSTGRES_URL", "").strip()
+        or os.getenv("POSTGRES_PRISMA_URL", "").strip()
+        or os.getenv("POSTGRES_URL_NON_POOLING", "").strip()
+    )
+    return normalize_database_url(raw_url)
+
+
+class ConfigMeta(type):
+    """Metaclass allowing dynamic property access on the Config class."""
+    @property
+    def DATABASE_URL(cls) -> str:
+        return get_database_url()
+
+    @property
+    def IS_PRODUCTION(cls) -> bool:
+        return is_production()
+
+
+class Config(metaclass=ConfigMeta):
     """SmartAI application configuration."""
 
     # Flask settings
@@ -25,31 +80,25 @@ class Config:
         "SECRET_KEY",
         "smartai-dev-secret-key-change-later"
     )
+    if is_production() and not os.getenv("SECRET_KEY"):
+        raise RuntimeError("SECRET_KEY is required in production")
     HOST = os.getenv("HOST", "127.0.0.1")
     PORT = int(os.getenv("PORT", "5000"))
-    DEBUG = os.getenv("FLASK_DEBUG", "0") == "1"
+    DEBUG = os.getenv("FLASK_DEBUG", "0") == "1" and not is_production()
 
     # Session Security settings
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
-    SESSION_COOKIE_SECURE = (
-        os.getenv("FLASK_ENV") == "production"
-        or os.getenv("VERCEL") == "1"
-        or os.getenv("SESSION_COOKIE_SECURE", "0") == "1"
-    )
+    SESSION_COOKIE_SECURE = is_production() or os.getenv("SESSION_COOKIE_SECURE", "0") == "1"
     PERMANENT_SESSION_LIFETIME = timedelta(days=7)
 
-    # Database settings - Neon PostgreSQL preferred, SQLite fallback
-    raw_db_url = os.getenv("DATABASE_URL", "").strip()
-    if raw_db_url.startswith("postgres://"):
-        raw_db_url = raw_db_url.replace("postgres://", "postgresql://", 1)
-    DATABASE_URL = raw_db_url
-    DATABASE_PATH = str(DATABASE_PATH)
+    # Local SQLite database path (used ONLY for local development)
+    DATABASE_PATH = str(BASE_DIR / "smartai.db")
 
     # AI Model settings - Groq API
     MODEL_TYPE = "groq"
     GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
-    GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile").strip()
+    GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b").strip()
 
     # Generation settings
     MAX_NEW_TOKENS = int(os.getenv("MAX_NEW_TOKENS", "1024"))
