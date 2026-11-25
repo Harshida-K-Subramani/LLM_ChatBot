@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartAI – Authentication</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236366f1'><path d='M12 2a2 2 0 0 1 2 2c0 .74-.4 1.38-1 1.72V7h2a5 5 0 0 1 5 5v1h1a3 3 0 0 1 3 3v2a3 3 0 0 1-3 3h-1v1a5 5 0 0 1-5 5h-4a5 5 0 0 1-5-5v-1H6a3 3 0 0 1-3-3v-2a3 3 0 0 1 3-3h1v-1a5 5 0 0 1 5-5h2V5.72A2 2 0 0 1 12 2zm-3 9a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm6 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4z'/></svg>">
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="auth-body">
+    <div class="auth-page-wrapper">
+        <!-- Auth Header with Logo and Theme Toggle -->
+        <header class="auth-topbar">
+            <div class="brand">
+                <div class="brand-icon">
+                    <i class="fa-solid fa-brain"></i>
+                </div>
+                <div class="brand-info">
+                    <span class="brand-title">SmartAI</span>
+                    <span class="brand-tag">Assistant</span>
+                </div>
+            </div>
+            <button class="footer-btn theme-toggle-compact" id="authThemeToggle" title="Toggle theme">
+                <i class="fa-solid fa-moon theme-icon-moon"></i>
+                <i class="fa-solid fa-sun theme-icon-sun"></i>
+            </button>
+        </header>
+
+        <!-- Centered Glassmorphic Auth Card -->
+        <div class="auth-card-container">
+            <div class="auth-card">
+                <!-- Tabs: Sign In / Create Account -->
+                <div class="auth-tabs">
+                    <button class="auth-tab {% if mode != 'signup' %}active{% endif %}" id="tabLogin" data-target="login">
+                        <i class="fa-solid fa-arrow-right-to-bracket"></i>
+                        <span>Sign In</span>
+                    </button>
+                    <button class="auth-tab {% if mode == 'signup' %}active{% endif %}" id="tabSignup" data-target="signup">
+                        <i class="fa-solid fa-user-plus"></i>
+                        <span>Create Account</span>
+                    </button>
+                </div>
+
+                <!-- Alert Message Box -->
+                <div class="auth-alert" id="authAlert" style="display: none;">
+                    <i class="auth-alert-icon fa-solid fa-circle-exclamation"></i>
+                    <span class="auth-alert-text" id="authAlertText"></span>
+                </div>
+
+                <!-- LOGIN FORM -->
+                <form class="auth-form" id="loginForm" {% if mode == 'signup' %}style="display: none;"{% endif %}>
+                    <div class="auth-header">
+                        <h2 class="auth-title">Welcome back</h2>
+                        <p class="auth-subtitle">Sign in to continue your intelligent conversation</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="loginEmail">Email Address</label>
+                        <div class="input-icon-wrapper">
+                            <i class="fa-regular fa-envelope input-leading-icon"></i>
+                            <input
+                                type="email"
+                                id="loginEmail"
+                                class="form-input"
+                                placeholder="name@example.com"
+                                required
+                                autocomplete="email"
+                            >
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="loginPassword">Password</label>
+                        <div class="input-icon-wrapper">
+                            <i class="fa-solid fa-lock input-leading-icon"></i>
+                            <input
+                                type="password"
+                                id="loginPassword"
+                                class="form-input"
+                                placeholder="Enter your password"
+                                required
+                                autocomplete="current-password"
+                            >
+                            <button type="button" class="password-toggle-btn" data-target="loginPassword" title="Toggle password visibility">
+                                <i class="fa-regular fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="form-row-remember">
+                        <label class="remember-checkbox-label">
+                            <input type="checkbox" id="loginRemember" checked>
+                            <span>Remember me for 7 days</span>
+                        </label>
+                    </div>
+
+                    <button type="submit" class="auth-submit-btn" id="loginSubmitBtn">
+                        <span class="btn-text">Sign In</span>
+                        <i class="fa-solid fa-arrow-right btn-icon"></i>
+                    </button>
+
+                    <div class="auth-switch-prompt">
+                        <span>Don't have an account?</span>
+                        <a href="#signup" class="auth-switch-link" id="linkToSignup">Create one now</a>
+                    </div>
+                </form>
+
+                <!-- SIGNUP FORM -->
+                <form class="auth-form" id="signupForm" {% if mode != 'signup' %}style="display: none;"{% endif %}>
+                    <div class="auth-header">
+                        <h2 class="auth-title">Create your account</h2>
+                        <p class="auth-subtitle">Join SmartAI to experience intelligent, private assistance</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="signupName">Full Name</label>
+                        <div class="input-icon-wrapper">
+                            <i class="fa-regular fa-user input-leading-icon"></i>
+                            <input
+                                type="text"
+                                id="signupName"
+                                class="form-input"
+                                placeholder="e.g. Alex Johnson"
+                                required
+                                minlength="2"
+                                autocomplete="name"
+                            >
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="signupEmail">Email Address</label>
+                        <div class="input-icon-wrapper">
+                            <i class="fa-regular fa-envelope input-leading-icon"></i>
+                            <input
+                                type="email"
+                                id="signupEmail"
+                                class="form-input"
+                                placeholder="name@example.com"
+                                required
+                                autocomplete="email"
+                            >
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="signupPassword">Password</label>
+                        <div class="input-icon-wrapper">
+                            <i class="fa-solid fa-lock input-leading-icon"></i>
+                            <input
+                                type="password"
+                                id="signupPassword"
+                                class="form-input"
+                                placeholder="At least 6 characters"
+                                required
+                                minlength="6"
+                                autocomplete="new-password"
+                            >
+                            <button type="button" class="password-toggle-btn" data-target="signupPassword" title="Toggle password visibility">
+                                <i class="fa-regular fa-eye"></i>
+                            </button>
+                        </div>
+                        <span class="form-hint">Must be at least 6 characters.</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="signupConfirmPassword">Confirm Password</label>
+                        <div class="input-icon-wrapper">
+                            <i class="fa-solid fa-shield-halved input-leading-icon"></i>
+                            <input
+                                type="password"
+                                id="signupConfirmPassword"
+                                class="form-input"
+                                placeholder="Re-enter your password"
+                                required
+                                minlength="6"
+                                autocomplete="new-password"
+                            >
+                            <button type="button" class="password-toggle-btn" data-target="signupConfirmPassword" title="Toggle password visibility">
+                                <i class="fa-regular fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="auth-submit-btn" id="signupSubmitBtn">
+                        <span class="btn-text">Create Account</span>
+                        <i class="fa-solid fa-user-plus btn-icon"></i>
+                    </button>
+
+                    <div class="auth-switch-prompt">
+                        <span>Already have an account?</span>
+                        <a href="#login" class="auth-switch-link" id="linkToLogin">Sign in instead</a>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Footer info -->
+            <footer class="auth-card-footer">
+                <span>Secure local SQLite storage &bull; Privacy-first architecture</span>
+            </footer>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        // Theme initialization matching SmartAI
+        const savedTheme = localStorage.getItem("smartai_theme") || "dark";
+        document.documentElement.setAttribute("data-theme", savedTheme);
+
+        const themeToggleBtn = document.getElementById("authThemeToggle");
+        themeToggleBtn.addEventListener("click", () => {
+            const current = document.documentElement.getAttribute("data-theme");
+            const newTheme = current === "dark" ? "light" : "dark";
+            document.documentElement.setAttribute("data-theme", newTheme);
+            localStorage.setItem("smartai_theme", newTheme);
+        });
+
+        // Tabs & Switch Links
+        const tabLogin = document.getElementById("tabLogin");
+        const tabSignup = document.getElementById("tabSignup");
+        const loginForm = document.getElementById("loginForm");
+        const signupForm = document.getElementById("signupForm");
+        const linkToSignup = document.getElementById("linkToSignup");
+        const linkToLogin = document.getElementById("linkToLogin");
+        const alertBox = document.getElementById("authAlert");
+        const alertText = document.getElementById("authAlertText");
+
+        function showAlert(msg, isSuccess = false) {
+            alertText.textContent = msg;
+            alertBox.className = "auth-alert " + (isSuccess ? "alert-success" : "alert-error");
+            const icon = alertBox.querySelector(".auth-alert-icon");
+            icon.className = "auth-alert-icon fa-solid " + (isSuccess ? "fa-circle-check" : "fa-circle-exclamation");
+            alertBox.style.display = "flex";
+        }
+
+        function hideAlert() {
+            alertBox.style.display = "none";
+        }
+
+        function showLogin() {
+            tabLogin.classList.add("active");
+            tabSignup.classList.remove("active");
+            loginForm.style.display = "block";
+            signupForm.style.display = "none";
+            hideAlert();
+            history.replaceState(null, "", "/login");
+        }
+
+        function showSignup() {
+            tabSignup.classList.add("active");
+            tabLogin.classList.remove("active");
+            signupForm.style.display = "block";
+            loginForm.style.display = "none";
+            hideAlert();
+            history.replaceState(null, "", "/signup");
+        }
+
+        tabLogin.addEventListener("click", showLogin);
+        tabSignup.addEventListener("click", showSignup);
+        linkToSignup.addEventListener("click", (e) => { e.preventDefault(); showSignup(); });
+        linkToLogin.addEventListener("click", (e) => { e.preventDefault(); showLogin(); });
+
+        // Password visibility toggles
+        document.querySelectorAll(".password-toggle-btn").forEach(btn => {
+            btn.addEventListener("click", () => {
+                const targetId = btn.getAttribute("data-target");
+                const input = document.getElementById(targetId);
+                const icon = btn.querySelector("i");
+                if (input.type === "password") {
+                    input.type = "text";
+                    icon.classList.remove("fa-eye");
+                    icon.classList.add("fa-eye-slash");
+                } else {
+                    input.type = "password";
+                    icon.classList.remove("fa-eye-slash");
+                    icon.classList.add("fa-eye");
+                }
+            });
+        });
+
+        // Set button loading state
+        function setButtonLoading(btn, isLoading, defaultText) {
+            btn.disabled = isLoading;
+            const textSpan = btn.querySelector(".btn-text");
+            const icon = btn.querySelector(".btn-icon");
+            if (isLoading) {
+                textSpan.textContent = "Please wait...";
+                icon.className = "fa-solid fa-spinner fa-spin btn-icon";
+            } else {
+                textSpan.textContent = defaultText;
+                icon.className = "btn-icon fa-solid " + (btn.id === "loginSubmitBtn" ? "fa-arrow-right" : "fa-user-plus");
+            }
+        }
+
+        // Handle Login Submission
+        loginForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            hideAlert();
+
+            const email = document.getElementById("loginEmail").value.trim();
+            const password = document.getElementById("loginPassword").value;
+            const remember = document.getElementById("loginRemember").checked;
+            const submitBtn = document.getElementById("loginSubmitBtn");
+
+            if (!email || !password) {
+                showAlert("Please enter your email and password.");
+                return;
+            }
+
+            setButtonLoading(submitBtn, true, "Sign In");
+
+            try {
+                const res = await fetch("/api/auth/login", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email, password, remember })
+                });
+
+                const data = await res.json();
+                if (!res.ok || !data.success) {
+                    throw new Error(data.error || "Login failed. Please check your credentials.");
+                }
+
+                showAlert("Login successful! Redirecting to SmartAI...", true);
+                setTimeout(() => {
+                    window.location.href = "/";
+                }, 600);
+
+            } catch (err) {
+                showAlert(err.message);
+                setButtonLoading(submitBtn, false, "Sign In");
+            }
+        });
+
+        // Handle Signup Submission
+        signupForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            hideAlert();
+
+            const name = document.getElementById("signupName").value.trim();
+            const email = document.getElementById("signupEmail").value.trim();
+            const password = document.getElementById("signupPassword").value;
+            const confirmPassword = document.getElementById("signupConfirmPassword").value;
+            const submitBtn = document.getElementById("signupSubmitBtn");
+
+            if (!name || name.length < 2) {
+                showAlert("Please enter a valid full name (at least 2 characters).");
+                return;
+            }
+
+            if (!email) {
+                showAlert("Please enter a valid email address.");
+                return;
+            }
+
+            if (password.length < 6) {
+                showAlert("Password must be at least 6 characters long.");
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                showAlert("Passwords do not match. Please re-enter.");
+                return;
+            }
+
+            setButtonLoading(submitBtn, true, "Create Account");
+
+            try {
+                const res = await fetch("/api/auth/signup", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        name,
+                        email,
+                        password,
+                        confirm_password: confirmPassword
+                    })
+                });
+
+                const data = await res.json();
+                if (!res.ok || !data.success) {
+                    throw new Error(data.error || "Registration failed.");
+                }
+
+                showAlert("Account created! Redirecting to SmartAI...", true);
+                setTimeout(() => {
+                    window.location.href = "/";
+                }, 700);
+
+            } catch (err) {
+                showAlert(err.message);
+                setButtonLoading(submitBtn, false, "Create Account");
+            }
+        });
+    </script>
+</body>
+</html>
+

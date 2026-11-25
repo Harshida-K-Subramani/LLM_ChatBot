@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartAI – Personal AI Assistant</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236366f1'><path d='M12 2a2 2 0 0 1 2 2c0 .74-.4 1.38-1 1.72V7h2a5 5 0 0 1 5 5v1h1a3 3 0 0 1 3 3v2a3 3 0 0 1-3 3h-1v1a5 5 0 0 1-5 5h-4a5 5 0 0 1-5-5v-1H6a3 3 0 0 1-3-3v-2a3 3 0 0 1 3-3h1v-1a5 5 0 0 1 5-5h2V5.72A2 2 0 0 1 12 2zm-3 9a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm6 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4z'/></svg>">
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons for clean UI buttons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <!-- Custom Stylesheet -->
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="app-layout">
+        <!-- SIDEBAR -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="brand">
+                    <div class="brand-icon">
+                        <i class="fa-solid fa-brain"></i>
+                    </div>
+                    <div class="brand-info">
+                        <span class="brand-title">SmartAI</span>
+                        <span class="brand-tag">Assistant</span>
+                    </div>
+                </div>
+                <button class="icon-btn mobile-close-btn" id="mobileSidebarClose" title="Close sidebar">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- New Chat Button -->
+            <div class="new-chat-wrapper">
+                <button class="new-chat-btn" id="newChatBtn">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>New chat</span>
+                    <span class="kbd-hint">Ctrl+K</span>
+                </button>
+            </div>
+
+            <!-- Search conversations -->
+            <div class="search-wrapper">
+                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                <input type="text" id="searchChatsInput" placeholder="Search chats..." class="search-input">
+            </div>
+
+            <!-- Conversations History List -->
+            <div class="conversations-history" id="conversationsContainer">
+                <div class="history-label">Recent Conversations</div>
+                <div class="conversations-list" id="conversationsList">
+                    <!-- Dynamic conversation items rendered here -->
+                </div>
+            </div>
+
+            <!-- Sidebar Footer Controls -->
+            <div class="sidebar-footer">
+                <!-- User Profile Card -->
+                <div class="user-profile-card" id="userProfileCard" title="Logged in user">
+                    <div class="user-profile-avatar" id="userAvatar">
+                        <span id="userAvatarInitial">U</span>
+                    </div>
+                    <div class="user-profile-info">
+                        <span class="user-profile-name" id="userNameDisplay">Loading...</span>
+                        <span class="user-profile-email" id="userEmailDisplay">user@example.com</span>
+                    </div>
+                    <button class="user-logout-btn" id="logoutBtn" title="Sign out of SmartAI">
+                        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                    </button>
+                </div>
+
+                <div class="system-status-card" id="systemStatusCard" title="Model operational state">
+                    <div class="status-indicator-dot" id="statusDot"></div>
+                    <div class="status-details">
+                        <span class="status-name" id="modelStatusName">Checking model...</span>
+                        <span class="status-sub" id="modelStatusSub">Local inference</span>
+                    </div>
+                </div>
+
+                <div class="footer-actions">
+                    <button class="footer-btn" id="themeToggleBtn" title="Toggle theme">
+                        <i class="fa-solid fa-moon theme-icon-moon"></i>
+                        <i class="fa-solid fa-sun theme-icon-sun"></i>
+                        <span id="themeLabel">Dark Mode</span>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Sidebar Backdrop for mobile -->
+        <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+        <!-- MAIN CHAT CONTAINER -->
+        <main class="chat-main">
+            <!-- Chat Topbar -->
+            <header class="chat-topbar">
+                <div class="topbar-left">
+                    <button class="icon-btn sidebar-toggle-btn" id="sidebarToggleBtn" title="Toggle sidebar">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <div class="current-chat-meta">
+                        <h1 class="chat-title" id="currentChatTitle">New Chat</h1>
+                        <span class="chat-model-badge" id="chatModelBadge">SmartAI • LLM</span>
+                    </div>
+                </div>
+
+                <div class="topbar-right">
+                    <button class="action-btn" id="clearChatBtn" title="Clear all messages in this chat">
+                        <i class="fa-solid fa-eraser"></i>
+                        <span>Clear Chat</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Chat Scroll Area -->
+            <div class="chat-scroll-container" id="chatScrollContainer">
+                <!-- Welcome Empty State -->
+                <div class="welcome-screen" id="welcomeScreen">
+                    <div class="welcome-icon">
+                        <i class="fa-solid fa-sparkles"></i>
+                    </div>
+                    <h2 class="welcome-title">How can SmartAI help you today?</h2>
+                    <p class="welcome-subtitle">Ask me anything from coding and mathematics to reasoning, learning, and general knowledge.</p>
+
+                    <div class="suggestions-grid">
+                        <div class="suggestion-card" data-prompt="Explain quantum computing in simple terms with an everyday analogy.">
+                            <div class="card-icon"><i class="fa-solid fa-atom"></i></div>
+                            <div class="card-text">
+                                <div class="card-title">Explain quantum computing</div>
+                                <div class="card-desc">With simple everyday analogies</div>
+                            </div>
+                        </div>
+
+                        <div class="suggestion-card" data-prompt="Write a Python script that calculates Fibonacci numbers using memoization and explains how it works.">
+                            <div class="card-icon"><i class="fa-solid fa-code"></i></div>
+                            <div class="card-text">
+                                <div class="card-title">Write Python code</div>
+                                <div class="card-desc">Fibonacci memoization with explanations</div>
+                            </div>
+                        </div>
+
+                        <div class="suggestion-card" data-prompt="Solve this math problem step-by-step: Find the derivative of f(x) = 3x^3 - 5x^2 + 12x - 7 and evaluate f'(2).">
+                            <div class="card-icon"><i class="fa-solid fa-square-root-variable"></i></div>
+                            <div class="card-text">
+                                <div class="card-title">Solve calculus problem</div>
+                                <div class="card-desc">Step-by-step mathematical reasoning</div>
+                            </div>
+                        </div>
+
+                        <div class="suggestion-card" data-prompt="Draft a polite and professional email asking a client for a 3-day deadline extension on a software project.">
+                            <div class="card-icon"><i class="fa-solid fa-pen-nib"></i></div>
+                            <div class="card-text">
+                                <div class="card-title">Professional Email Draft</div>
+                                <div class="card-desc">Request a polite project deadline extension</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Messages Stream -->
+                <div class="messages-container" id="messagesContainer">
+                    <!-- Dynamic chat messages inserted here -->
+                </div>
+
+                <!-- Typing indicator -->
+                <div class="typing-indicator-row" id="typingIndicator" style="display: none;">
+                    <div class="message-avatar assistant-avatar">
+                        <i class="fa-solid fa-sparkles"></i>
+                    </div>
+                    <div class="typing-bubble">
+                        <div class="typing-dots">
+                            <span class="dot"></span>
+                            <span class="dot"></span>
+                            <span class="dot"></span>
+                        </div>
+                        <span class="typing-text">SmartAI is generating response...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Chat Input Bar -->
+            <footer class="chat-input-section">
+                <div class="input-container-wrapper">
+                    <div class="input-box-container">
+                        <textarea
+                            id="messageInput"
+                            class="chat-textarea"
+                            rows="1"
+                            placeholder="Message SmartAI... (Shift+Enter for new line)"
+                            autocomplete="off"
+                        ></textarea>
+
+                        <button class="send-btn" id="sendBtn" title="Send message" disabled>
+                            <i class="fa-solid fa-arrow-up"></i>
+                        </button>
+                    </div>
+
+                    <div class="input-footer-info">
+                        <span class="disclaimer-text">SmartAI runs on Hugging Face open-source LLM. Check important info.</span>
+                    </div>
+                </div>
+            </footer>
+        </main>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Scripts -->
+    <script src="/static/js/markdown.js"></script>
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
+

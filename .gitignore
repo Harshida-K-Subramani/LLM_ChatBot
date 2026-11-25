@@ -1,0 +1,26 @@
+# Environment variables & Secrets
+.env
+.env.*
+!.env.example
+
+# Local SQLite databases
+*.db
+*.db-shm
+*.db-wal
+
+# Python bytecode & environments
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+ENV/
+
+# Vercel deployment artifacts
+.vercel/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
