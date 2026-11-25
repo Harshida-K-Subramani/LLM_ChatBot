@@ -152,7 +152,7 @@ class ProductionDatabaseComplianceTests(unittest.TestCase):
         self.assertTrue(updated)
 
         # 9. Delete last assistant message (Regenerate flow)
-        deleted_msg = database.delete_last_assistant_message(conv_id)
+        deleted_msg = database.delete_last_assistant_message(conv_id, user_id=user["id"])
         self.assertIsNotNone(deleted_msg)
         conv_after_delete = database.get_conversation(conv_id, user_id=user["id"])
         self.assertEqual(len(conv_after_delete["messages"]), 1)
@@ -167,6 +167,29 @@ class ProductionDatabaseComplianceTests(unittest.TestCase):
         del_conv = database.delete_conversation(conv_id, user_id=user["id"])
         self.assertTrue(del_conv)
         self.assertIsNone(database.get_conversation(conv_id, user_id=user["id"]))
+
+    def test_06_mandatory_user_id_scoping(self):
+        """CRITICAL: Verify conversation operations reject missing or empty user_id."""
+        with self.assertRaises(ValueError):
+            database.create_conversation("Invalid Chat", user_id="")
+
+        with self.assertRaises(ValueError):
+            database.get_conversations(user_id="")
+
+        with self.assertRaises(ValueError):
+            database.get_conversation("dummy_id", user_id="")
+
+        with self.assertRaises(ValueError):
+            database.update_conversation_title("dummy_id", "New Title", user_id="")
+
+        with self.assertRaises(ValueError):
+            database.delete_conversation("dummy_id", user_id="")
+
+        with self.assertRaises(ValueError):
+            database.clear_conversation_messages("dummy_id", user_id="")
+
+        with self.assertRaises(ValueError):
+            database.delete_last_assistant_message("dummy_id", user_id="")
 
 
 if __name__ == "__main__":

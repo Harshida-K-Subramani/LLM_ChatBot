@@ -1,22 +1,17 @@
 """
 SmartAI - AI Model Engine
-High-performance inference powered by Groq API (e.g. Llama 3.3 70B Versatile).
+High-performance inference powered exclusively by a remote, always-on Cloud Ollama server
+running Qwen 2.5 3B (qwen2.5:3b).
 Includes real-time clock handling, greetings, and multi-turn conversational context.
-Designed for serverless Vercel deployment with zero local model weights.
+Communicates via remote HTTP API (/api/chat) with bearer token authentication.
 """
 
 import logging
 import threading
 import re
+import requests
 from datetime import datetime, timezone, timedelta
 from typing import List, Dict, Any, Optional
-
-try:
-    from groq import Groq
-    GROQ_AVAILABLE = True
-except ImportError:
-    GROQ_AVAILABLE = False
-    Groq = None
 
 from config import Config
 
@@ -25,7 +20,7 @@ logger = logging.getLogger("SmartAI.ModelEngine")
 
 
 class ModelEngine:
-    """Manages AI conversation and response generation via Groq API."""
+    """Manages AI conversation and response generation via remote Ollama HTTP API."""
 
     _instance = None
     _lock = threading.Lock()
@@ -42,66 +37,84 @@ class ModelEngine:
         if getattr(self, "_initialized", False):
             return
 
-        self.model_type = "groq"
-        self.model_name = Config.GROQ_MODEL
-        self.api_key = Config.GROQ_API_KEY
+        self.model_type = "ollama"
+        self.model_name = Config.OLLAMA_MODEL
+        self.base_url = Config.OLLAMA_BASE_URL
+        self.api_key = Config.OLLAMA_API_KEY
 
         self.is_loading = False
         self.is_loaded = False
         self.load_error = None
-        self.client: Optional[Any] = None
 
         self._load_lock = threading.Lock()
 
-        # Initialize Groq client if key is configured
-        if self.api_key and GROQ_AVAILABLE:
-            try:
-                self.client = Groq(api_key=self.api_key)
-                self.is_loaded = True
-                logger.info(f"SmartAI initialized with Groq API: {self.model_name}")
-            except Exception as e:
-                self.load_error = str(e)
-                logger.error(f"Failed to initialize Groq client: {e}")
-        elif not self.api_key:
-            self.load_error = "GROQ_API_KEY is not configured in environment variables."
-            logger.warning("GROQ_API_KEY is missing. Model engine is standing by.")
+        if self.base_url:
+            logger.info(f"SmartAI configured with remote Ollama server: {self.base_url} (model: {self.model_name})")
+            self.is_loaded = True
+        else:
+            self.load_error = "OLLAMA_BASE_URL is not configured in environment variables."
+            logger.warning("OLLAMA_BASE_URL is missing. Model engine is standing by.")
 
         self._initialized = True
 
+    def _get_headers(self) -> Dict[str, str]:
+        """Constructs HTTP headers with optional Bearer authentication."""
+        headers = {
+            "Content-Type": "application/json"
+        }
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        return headers
+
     # =========================================
-    # CHECK / INITIALIZE GROQ CLIENT
+    # CHECK REMOTE OLLAMA SERVER STATUS
     # =========================================
 
     def load_model(self) -> bool:
-        """Verifies or re-initializes the Groq client connection."""
-        if self.is_loaded and self.client is not None:
-            return True
-
+        """Verifies connectivity to the remote Ollama server."""
         with self._load_lock:
-            # Re-read key in case it was set dynamically
-            self.api_key = Config.GROQ_API_KEY
-            self.model_name = Config.GROQ_MODEL
+            # Re-read configuration in case environment changed dynamically
+            if Config.OLLAMA_BASE_URL:
+                self.base_url = Config.OLLAMA_BASE_URL
+            if Config.OLLAMA_API_KEY:
+                self.api_key = Config.OLLAMA_API_KEY
+            if Config.OLLAMA_MODEL:
+                self.model_name = Config.OLLAMA_MODEL
 
-            if not GROQ_AVAILABLE:
-                self.load_error = "groq Python package is not installed."
-                self.is_loaded = False
-                return False
-
-            if not self.api_key:
-                self.load_error = "GROQ_API_KEY is not configured in environment."
+            if not self.base_url:
+                self.load_error = "OLLAMA_BASE_URL is not configured in environment variables."
                 self.is_loaded = False
                 return False
 
             try:
-                self.client = Groq(api_key=self.api_key)
+                # Probe remote Ollama server tags endpoint
+                probe_url = f"{self.base_url}/api/tags"
+                response = requests.get(
+                    probe_url,
+                    headers=self._get_headers(),
+                    timeout=5
+                )
+
+                if response.status_code in (401, 403):
+                    self.load_error = "Remote Ollama authentication failed. Please verify your OLLAMA_API_KEY."
+                    self.is_loaded = False
+                    logger.error(self.load_error)
+                    return False
+
+                if not response.ok:
+                    self.load_error = f"Remote Ollama server returned HTTP {response.status_code} on probe."
+                    self.is_loaded = False
+                    return False
+
                 self.is_loaded = True
                 self.load_error = None
-                logger.info(f"Groq API connection established: {self.model_name}")
+                logger.info(f"Remote Ollama server is reachable and ready: {self.base_url} ({self.model_name})")
                 return True
-            except Exception as e:
-                self.load_error = str(e)
+
+            except requests.exceptions.RequestException as e:
+                self.load_error = f"Cannot reach remote Ollama server at {self.base_url}: {e}"
                 self.is_loaded = False
-                logger.error(f"Failed to connect to Groq API: {e}", exc_info=True)
+                logger.warning(self.load_error)
                 return False
 
     # =========================================
@@ -213,38 +226,95 @@ class ModelEngine:
         return messages
 
     # =========================================
-    # GENERATE GROQ API RESPONSE
+    # GENERATE REMOTE OLLAMA HTTP RESPONSE
     # =========================================
 
-    def generate_groq_response(
+    def generate_ollama_response(
         self,
         messages: List[Dict[str, str]]
     ) -> str:
-        if not self.is_loaded or self.client is None:
-            success = self.load_model()
-            if not success or self.client is None:
-                raise RuntimeError(
-                    f"Groq API unavailable: {self.load_error or 'GROQ_API_KEY is not set.'}"
-                )
+        # Dynamically refresh base url and api key in case set after initialization
+        base_url = Config.OLLAMA_BASE_URL or self.base_url
+        api_key = Config.OLLAMA_API_KEY or self.api_key
+        model_name = Config.OLLAMA_MODEL or self.model_name
 
-        try:
-            completion = self.client.chat.completions.create(
-                model=self.model_name,
-                messages=messages,
-                temperature=Config.TEMPERATURE,
-                top_p=Config.TOP_P,
-                max_tokens=Config.MAX_NEW_TOKENS
+        if not base_url:
+            raise RuntimeError(
+                "OLLAMA_BASE_URL is not configured. Please set OLLAMA_BASE_URL in your environment variables "
+                "to point to your remote Ollama cloud server."
             )
 
-            answer = completion.choices[0].message.content
-            if answer:
-                return answer.strip()
+        payload = {
+            "model": model_name,
+            "messages": messages,
+            "stream": False,
+            "options": {
+                "temperature": Config.TEMPERATURE,
+                "top_p": Config.TOP_P,
+                "repeat_penalty": Config.REPETITION_PENALTY,
+                "num_predict": Config.MAX_NEW_TOKENS
+            }
+        }
 
-            return "Sorry, I couldn't generate a response. Please try again."
+        headers = {
+            "Content-Type": "application/json"
+        }
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+
+        chat_url = f"{base_url}/api/chat"
+
+        try:
+            response = requests.post(
+                chat_url,
+                headers=headers,
+                json=payload,
+                timeout=(5, 60)
+            )
+
+            if response.status_code in (401, 403):
+                raise RuntimeError("Remote Ollama authentication failed. Please verify your OLLAMA_API_KEY.")
+
+            if response.status_code == 404:
+                raise RuntimeError(
+                    f"Model '{model_name}' was not found on the remote Ollama server. "
+                    f"Please ensure 'ollama pull {model_name}' has been executed on the server."
+                )
+
+            if not response.ok:
+                err_text = response.text[:200]
+                raise RuntimeError(f"Remote Ollama server error (HTTP {response.status_code}): {err_text}")
+
+            data = response.json()
+            content = data.get("message", {}).get("content", "")
+            if content:
+                return content.strip()
+
+            return "Sorry, I could not generate a response. Please try again."
+
+        except requests.exceptions.ConnectTimeout:
+            logger.error(f"Connection timeout reaching remote Ollama server at {base_url}")
+            raise RuntimeError(
+                f"Connection timed out reaching remote Ollama server at {base_url}. "
+                "Please verify that the server is online and port/domain is accessible."
+            )
+
+        except requests.exceptions.ReadTimeout:
+            logger.error(f"Read timeout waiting for response from remote Ollama server at {base_url}")
+            raise RuntimeError(
+                "Remote Ollama server took too long to generate a response (request read timeout)."
+            )
+
+        except requests.exceptions.ConnectionError as e:
+            logger.error(f"Failed to connect to remote Ollama server at {base_url}: {e}")
+            raise RuntimeError(
+                f"Failed to connect to remote Ollama server at {base_url}. "
+                "Please ensure the remote Ollama cloud instance is running."
+            )
 
         except Exception as e:
-            logger.error(f"Groq API response generation failed: {e}", exc_info=True)
-            raise RuntimeError(f"Could not generate response via Groq API: {e}")
+            logger.error(f"Remote Ollama response generation failed: {e}", exc_info=True)
+            raise RuntimeError(f"Remote Ollama inference failed: {e}")
 
     # =========================================
     # MAIN RESPONSE FUNCTION
@@ -274,21 +344,23 @@ class ModelEngine:
         if greeting_reply:
             return greeting_reply
 
-        # 3. LLM generation via Groq API
+        # 3. LLM generation via remote Ollama HTTP API
         messages = self.build_prompt_messages(conversation_history)
-        return self.generate_groq_response(messages)
+        return self.generate_ollama_response(messages)
 
     # =========================================
     # MODEL STATUS
     # =========================================
 
     def get_status(self) -> Dict[str, Any]:
+        base_url = Config.OLLAMA_BASE_URL or self.base_url
+        model_name = Config.OLLAMA_MODEL or self.model_name
         return {
             "model_type": self.model_type,
-            "model_name": self.model_name,
-            "is_loaded": bool(self.client is not None or self.api_key),
+            "model_name": model_name,
+            "is_loaded": bool(base_url),
             "is_loading": False,
-            "device": "Groq Cloud",
+            "device": "Remote Cloud",
             "load_error": self.load_error
         }
 

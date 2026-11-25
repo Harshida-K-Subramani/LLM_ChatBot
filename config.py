@@ -1,6 +1,6 @@
 """
 SmartAI - Application Configuration
-Configuration for Flask, Neon PostgreSQL, and Groq API.
+Configuration for Flask, Neon PostgreSQL, and Remote Cloud Ollama Server.
 Supports seamless deployment on Vercel serverless environment with strict production safety.
 """
 
@@ -95,10 +95,11 @@ class Config(metaclass=ConfigMeta):
     # Local SQLite database path (used ONLY for local development)
     DATABASE_PATH = str(BASE_DIR / "smartai.db")
 
-    # AI Model settings - Groq API
-    MODEL_TYPE = "groq"
-    GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
-    GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b").strip()
+    # AI Model settings - Remote Ollama Cloud Endpoint
+    MODEL_TYPE = "ollama"
+    OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "").strip().rstrip("/")
+    OLLAMA_API_KEY = os.getenv("OLLAMA_API_KEY", "").strip()
+    OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:3b").strip()
 
     # Generation settings
     MAX_NEW_TOKENS = int(os.getenv("MAX_NEW_TOKENS", "1024"))

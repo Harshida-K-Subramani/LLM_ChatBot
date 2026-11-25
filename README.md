@@ -1,6 +1,6 @@
 # SmartAI – Personal AI Assistant
 
-A modern, full-stack conversational AI assistant built with **Flask**, **Groq Cloud API**, and **Neon PostgreSQL**. Designed for seamless, zero-weight serverless deployment on **Vercel** with full user authentication, session security, and conversation isolation.
+A modern, full-stack conversational AI assistant built with **Flask**, **Remote Cloud Ollama** (`qwen2.5:3b`), and **Neon PostgreSQL**. Designed for secure, zero-weight serverless deployment on **Vercel** with complete user authentication, session security, and conversation isolation.
 
 ---
 
@@ -8,23 +8,39 @@ A modern, full-stack conversational AI assistant built with **Flask**, **Groq Cl
 
 - **Frontend**: Responsive HTML5, CSS3 (Light/Dark themes), JavaScript, Markdown rendering, Code syntax highlighting.
 - **Backend**: Python Flask REST API with HttpOnly secure sessions.
-- **AI Engine**: Groq Cloud API (`llama-3.3-70b-versatile`) with multi-turn context retention, real-time IST clock, and greeting handlers.
+- **AI Engine**: Remote always-on **Cloud Ollama** server running `qwen2.5:3b`. Connects via Ollama's HTTP API (`/api/chat`) with secure Bearer authentication, request timeouts, real-time IST clock, and greeting handlers.
 - **Database**:
   - **Production (Vercel)**: **Neon PostgreSQL** via `psycopg2` with serverless connection pooling (`ThreadedConnectionPool`) and auto-reconnect handling.
   - **Local Development**: Automatic fallback to local **SQLite** (`smartai.db`) when `DATABASE_URL` is omitted in non-production environments.
 
 ---
 
-## Production Deployment on Vercel & Neon
+## Remote Ollama Cloud Server Setup
+
+1. **Deploy Ollama on a Remote Cloud Instance** (e.g. AWS EC2, DigitalOcean, Hetzner, GCP):
+   ```bash
+   curl -fsSL https://ollama.com/install.sh | sh
+   ```
+
+2. **Pull the Required Model (`qwen2.5:3b`)**:
+   ```bash
+   ollama pull qwen2.5:3b
+   ```
+
+3. **Secure the Endpoint Behind HTTPS & API Key**:
+   - Use a reverse proxy such as Nginx, Caddy, or Cloudflare Tunnel to expose Ollama securely over HTTPS.
+   - Configure API Key authentication in the reverse proxy (e.g. checking `Authorization: Bearer <OLLAMA_API_KEY>`).
+   - Never expose Ollama port 11434 directly to the public internet without authentication.
+
+---
+
+## Production Deployment on Vercel
 
 ### 1. Create a Neon PostgreSQL Database
 1. Go to [Neon Console](https://console.neon.tech/) and create a free project (e.g., `smartai-db`).
 2. In the Neon Dashboard under **Connection Details**:
    - Ensure **Pooled connection** is checked (ends with `-pooler...`).
-   - Copy the connection string. It will look like:
-     ```text
-     postgresql://<user>:<password>@ep-cool-fog-123456-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require
-     ```
+   - Copy the connection string (`postgresql://<user>:<password>@...-pooler...neon.tech/neondb?sslmode=require`).
 
 ### 2. Configure Vercel Project Environment Variables
 In your Vercel Project Dashboard (**Settings > Environment Variables**), configure the following:
@@ -32,13 +48,11 @@ In your Vercel Project Dashboard (**Settings > Environment Variables**), configu
 | Variable | Description | Example / Value |
 | :--- | :--- | :--- |
 | `DATABASE_URL` | Neon PostgreSQL pooled connection string | `postgresql://user:pass@ep-xyz-pooler.neon.tech/neondb?sslmode=require` |
-| `GROQ_API_KEY` | Groq Cloud API Key | `gsk_...` |
-| `GROQ_MODEL` | Groq Model Name | `llama-3.3-70b-versatile` |
+| `OLLAMA_BASE_URL` | Remote Ollama Cloud Server URL (HTTPS) | `https://ollama.your-domain.com` |
+| `OLLAMA_API_KEY` | Remote Ollama Secret Bearer Key | `your_secure_remote_ollama_api_key` |
+| `OLLAMA_MODEL` | Ollama Model Name | `qwen2.5:3b` |
 | `SECRET_KEY` | Flask session secret key | *Random 32-character string* |
 | `FLASK_ENV` | Environment identifier | `production` |
-
-> [!IMPORTANT]
-> In production on Vercel, SQLite is strictly disabled to prevent file errors on serverless read-only filesystems. Setting `DATABASE_URL` connects your deployment to Neon PostgreSQL, where tables and indexes are automatically created on first run.
 
 ---
 
@@ -57,7 +71,7 @@ In your Vercel Project Dashboard (**Settings > Environment Variables**), configu
 3. **Configure Environment Variables** (Optional):
    Copy `.env.example` to `.env`:
    - If `DATABASE_URL` is left empty, SmartAI will automatically use local SQLite (`smartai.db`).
-   - Add your `GROQ_API_KEY` for LLM responses.
+   - Add your `OLLAMA_BASE_URL` and `OLLAMA_API_KEY` to connect to your remote cloud Ollama instance.
 
 4. **Run Server**:
    ```powershell
@@ -69,6 +83,10 @@ In your Vercel Project Dashboard (**Settings > Environment Variables**), configu
 
 ## Running Test Suites
 
+- **Model Engine Verification**:
+  ```powershell
+  python test_model.py
+  ```
 - **Production Compliance & Database CRUD**:
   ```powershell
   python -m unittest test_production_db.py -v
@@ -85,4 +103,3 @@ In your Vercel Project Dashboard (**Settings > Environment Variables**), configu
   ```powershell
   python e2e_test.py
   ```
-

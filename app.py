@@ -1,6 +1,6 @@
 """
 SmartAI - Flask Backend Application
-Connects frontend, Neon PostgreSQL / SQLite database and Groq LLM model engine.
+Connects frontend, Neon PostgreSQL / SQLite database and Remote Ollama LLM engine.
 Features complete user authentication, session security,
 user-isolated conversation history, and protected chat endpoints.
 Optimized for serverless deployment on Vercel.
@@ -573,17 +573,17 @@ def regenerate():
 
 @app.route("/api/model/load", methods=["POST"])
 def preload_model():
-    """Verifies Groq API model status."""
+    """Verifies remote Ollama model server status."""
     success = ai_engine.load_model()
     if success:
         return jsonify({
             "success": True,
-            "message": f"Groq model {ai_engine.model_name} is ready."
+            "message": f"Remote Ollama model {ai_engine.model_name} is ready."
         }), 200
 
     return jsonify({
         "success": False,
-        "error": ai_engine.load_error or "Groq API key is not configured."
+        "error": ai_engine.load_error or "Remote Ollama endpoint is not reachable."
     }), 500
 
 

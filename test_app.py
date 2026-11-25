@@ -38,42 +38,46 @@ class SmartAITests(unittest.TestCase):
 
     def test_01_database_crud(self):
         """Test database conversation and message CRUD operations."""
+        user = database.get_user_by_email(self.test_email)
+        self.assertIsNotNone(user)
+        user_id = user["id"]
+
         # 1. Create conversation
-        conv = database.create_conversation("Test Conversation")
+        conv = database.create_conversation("Test Conversation", user_id=user_id)
         conv_id = conv["id"]
         self.assertIsNotNone(conv_id)
         self.assertEqual(conv["title"], "Test Conversation")
 
         # 2. Add user message
-        msg1 = database.add_message(conv_id, "user", "Hello SmartAI!")
+        msg1 = database.add_message(conv_id, "user", "Hello SmartAI!", user_id=user_id)
         self.assertEqual(msg1["sender"], "user")
         self.assertEqual(msg1["content"], "Hello SmartAI!")
 
         # 3. Add assistant response
-        msg2 = database.add_message(conv_id, "assistant", "Hello! How can I assist you today?")
+        msg2 = database.add_message(conv_id, "assistant", "Hello! How can I assist you today?", user_id=user_id)
         self.assertEqual(msg2["sender"], "assistant")
 
         # 4. Fetch conversation details
-        fetched = database.get_conversation(conv_id)
+        fetched = database.get_conversation(conv_id, user_id=user_id)
         self.assertIsNotNone(fetched)
         self.assertEqual(len(fetched["messages"]), 2)
         self.assertEqual(fetched["messages"][0]["content"], "Hello SmartAI!")
 
         # 5. Delete last assistant message (Regenerate simulation)
-        deleted = database.delete_last_assistant_message(conv_id)
+        deleted = database.delete_last_assistant_message(conv_id, user_id=user_id)
         self.assertIsNotNone(deleted)
-        after_regen = database.get_conversation(conv_id)
+        after_regen = database.get_conversation(conv_id, user_id=user_id)
         self.assertEqual(len(after_regen["messages"]), 1)
 
         # 6. Clear conversation messages
-        database.clear_conversation_messages(conv_id)
-        cleared = database.get_conversation(conv_id)
+        database.clear_conversation_messages(conv_id, user_id=user_id)
+        cleared = database.get_conversation(conv_id, user_id=user_id)
         self.assertEqual(len(cleared["messages"]), 0)
 
         # 7. Delete conversation
-        del_success = database.delete_conversation(conv_id)
+        del_success = database.delete_conversation(conv_id, user_id=user_id)
         self.assertTrue(del_success)
-        self.assertIsNone(database.get_conversation(conv_id))
+        self.assertIsNone(database.get_conversation(conv_id, user_id=user_id))
         print("✓ Database CRUD tests passed successfully!")
 
     def test_02_health_endpoint(self):
